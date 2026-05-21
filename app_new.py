@@ -835,7 +835,7 @@ def main():
     cols = st.columns(6)
     for col, title, value in zip(
         cols,
-        ["Total publicações", "Publicações Q1", "Citações SCOPUS", "Citações Scholar",
+        ["Total", "Q1", "Citations SCOPUS", "Citations Scholar",
          "h-index SCOPUS", "h-index Scholar"],
         [total_pubs, total_q1, total_cit_scopus, total_cit_scholar, h_scopus, h_scholar],
     ):
@@ -846,7 +846,7 @@ def main():
     render_charts(filtered)
 
     # ── View toggle + export ─────────────────────────────────────────────────
-    st.markdown("## Publicações")
+    st.markdown("## Publications")
 
     top_left, top_right = st.columns([3, 1])
     with top_left:
