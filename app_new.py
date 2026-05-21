@@ -420,12 +420,15 @@ def render_publication(pub: pd.Series):
     sjr_q = pub.get("SJR_Q", "") or ""
     url = str(pub.get("URL", "")).strip()
 
-    jcr_val = str(pub.get("JCR", "") or "").strip()
-    jcr_ano = str(pub.get("JCRANO", "") or "").strip()
-    jcr_cat = str(pub.get("JCR_CATEGORIA", "") or "").strip()
-    sjr_val = str(pub.get("SJR", "") or "").strip()
-    sjr_ano = str(pub.get("SJRANO", "") or "").strip()
-    sjr_cat = str(pub.get("SJR_CATEGORIA", "") or "").strip()
+    def _clean(v):
+        s = str(v).strip() if v is not None else ""
+        return "" if s.lower() in ("nan", "none", "") else s
+    jcr_val = _clean(pub.get("JCR", ""))
+    jcr_ano = _clean(pub.get("JCRANO", ""))
+    jcr_cat = _clean(pub.get("JCR_CATEGORIA", ""))
+    sjr_val = _clean(pub.get("SJR", ""))
+    sjr_ano = _clean(pub.get("SJRANO", ""))
+    sjr_cat = _clean(pub.get("SJR_CATEGORIA", ""))
 
     st.markdown(f"### {title}")
     st.markdown(f"**Autor(es):** {authors}")
