@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-APP_TITLE = "Publicações"
+APP_TITLE = "Publications"
 DEFAULT_XLSX = "publicacoes.xlsx"
 FALLBACK_XLSX = "889a07e4-87ea-4ae9-822a-25b5baf10492.xlsx"
 SHEET_NAME = "vlistapubs"
