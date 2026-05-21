@@ -782,6 +782,14 @@ def render_export(df: pd.DataFrame):
 
 def main():
     st.title(APP_TITLE)
+    st.markdown("""
+       <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        .stDeployButton {display: none;}
+       </style>
+    """, unsafe_allow_html=True)
 
     # ── Upload opcional do ficheiro Excel ────────────────────────────────────
     with st.sidebar.expander("📂 Carregar ficheiro Excel", expanded=False):
