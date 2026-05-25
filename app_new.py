@@ -293,53 +293,66 @@ def format_citations(x) -> str:
 # ─────────────────────────── filters ────────────────────────────────────────
 
 def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
-    st.sidebar.header("Filtros")
-
     url_params = read_query_params()
 
     # Reset button
-    if st.sidebar.button("🔄 Repor filtros"):
-        for key in list(st.session_state.keys()):
-            if key.startswith("filter_"):
-                del st.session_state[key]
-        st.query_params.clear()
-        st.rerun()
+    reset_col, _ = st.columns([1, 5])
+    with reset_col:
+        if st.button("🔄 Repor filtros", key="reset_filters_main"):
+            for key in list(st.session_state.keys()):
+                if key.startswith("filter_"):
+                    del st.session_state[key]
+            st.query_params.clear()
+            st.rerun()
+
+    # Filtros principais no início da página
+    st.markdown("#### Filtros principais")
+    top_filter_cols = st.columns([2, 3, 2])
 
     anos_validos = df["ANO"].dropna().astype(int)
-    if len(anos_validos) >= 2:
-        ano_min_data, ano_max_data = int(anos_validos.min()), int(anos_validos.max())
-        default_ano = (
-            url_params.get("ano_min", ano_min_data),
-            url_params.get("ano_max", ano_max_data),
-        )
-        ano_range = st.sidebar.slider(
-            "Intervalo de anos",
-            min_value=ano_min_data,
-            max_value=ano_max_data,
-            value=default_ano,
-            key="filter_ano_range",
-        )
-    else:
-        ano_range = None
+    with top_filter_cols[0]:
+        if len(anos_validos) >= 2:
+            ano_min_data, ano_max_data = int(anos_validos.min()), int(anos_validos.max())
+            default_ano = (
+                url_params.get("ano_min", ano_min_data),
+                url_params.get("ano_max", ano_max_data),
+            )
+            ano_range = st.slider(
+                "Intervalo de anos",
+                min_value=ano_min_data,
+                max_value=ano_max_data,
+                value=default_ano,
+                key="filter_ano_range",
+            )
+        else:
+            ano_range = None
 
     tipos = sorted([x for x in df["TIPO"].dropna().astype(str).unique() if x])
-    tipos_sel = st.sidebar.multiselect(
-        "Tipo de publicação",
-        tipos,
-        default=url_params.get("tipos", tipos),
-        key="filter_tipos",
-    )
+    with top_filter_cols[1]:
+        tipos_sel = st.multiselect(
+            "Tipo de publicação",
+            tipos,
+            default=url_params.get("tipos", tipos),
+            key="filter_tipos",
+        )
+
+    # Incluir explicitamente publicações sem quartil no filtro
+    best_q_opts = sorted([x for x in df["MELHOR_Q"].dropna().astype(str).unique() if x])
+    if df["MELHOR_Q"].fillna("").astype(str).str.strip().eq("").any():
+        best_q_opts.append("Sem quartil")
+
+    with top_filter_cols[2]:
+        melhor_q_sel = st.multiselect(
+            "Quartil",
+            best_q_opts,
+            default=url_params.get("quartil", []),
+            key="filter_quartil",
+        )
+
+    st.sidebar.header("Filtros adicionais")
 
     fontes = sorted([x for x in df["FONTE_PESQ"].dropna().astype(str).unique() if x])
     fontes_sel = st.sidebar.multiselect("Fonte / Venue", fontes, key="filter_fontes")
-
-    best_q_opts = sorted([x for x in df["MELHOR_Q"].dropna().astype(str).unique() if x])
-    melhor_q_sel = st.sidebar.multiselect(
-        "Quartil",
-        best_q_opts,
-        default=url_params.get("quartil", []),
-        key="filter_quartil",
-    )
 
     bases_sel = st.sidebar.multiselect(
         "Indexado em",
@@ -383,7 +396,10 @@ def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
     if fontes_sel:
         out = out[out["FONTE_PESQ"].isin(fontes_sel)]
     if melhor_q_sel:
-        out = out[out["MELHOR_Q"].isin(melhor_q_sel)]
+        q_mask = out["MELHOR_Q"].isin([q for q in melhor_q_sel if q != "Sem quartil"])
+        if "Sem quartil" in melhor_q_sel:
+            q_mask = q_mask | out["MELHOR_Q"].fillna("").astype(str).str.strip().eq("")
+        out = out[q_mask]
 
     if "SCOPUS" in bases_sel:
         out = out[out["TEM_SCOPUS"]]
