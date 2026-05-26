@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Académico — José Manuel Ferreira Machado</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --blue:#1a4f8a;--blue-l:#e8f0fb;--green:#1D9E75;--amber:#BA7517;--coral:#D85A30;
+  --bg:#f5f5f3;--border:rgba(0,0,0,0.09);--text:#1a1a1a;--muted:#666;--hint:#999;
+  --r:10px;--rs:6px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--blue:#5b9bd5;--blue-l:#1a2d45;--bg:#1e1e1c;--border:rgba(255,255,255,0.1);--text:#f0f0ee;--muted:#aaa;--hint:#666;}
+  body{background:#141412;}
+  .card{background:#2a2a28!important;}
+  .award-card{background:#2a2a28!important;}
+  table.dt td,table.dt th{border-color:rgba(255,255,255,0.08);}
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);background:var(--bg);}
+
+header{background:var(--blue);color:#fff;padding:1.4rem 2rem;}
+header h1{font-size:1.25rem;font-weight:500;}
+header p{font-size:.82rem;opacity:.72;margin-top:3px;}
+
+#status{padding:.8rem 2rem;font-size:13px;color:var(--muted);border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:10px;}
+#status.err{color:#a00;background:#fce8e8;}
+#status.hidden{display:none;}
+.spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+main{padding:1.5rem 2rem;max-width:1100px;}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.4rem;padding-bottom:.9rem;border-bottom:.5px solid var(--border);}
+nav button{font-size:13px;padding:6px 13px;border-radius:var(--rs);border:.5px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+nav button:hover{background:var(--blue-l);}
+nav button.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:500;}
+
+.tab{display:none;}.tab.active{display:block;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.4rem;}
+.card{background:#fff;border:.5px solid var(--border);border-radius:var(--r);}
+.metric.card{padding:13px 15px;}
+.metric-val{font-size:28px;font-weight:500;color:var(--blue);line-height:1.1;}
+.metric-lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+.metric-sub{font-size:11px;color:var(--hint);margin-top:2px;}
+.sec{font-size:13px;font-weight:500;color:var(--muted);margin:1.2rem 0 9px;}
+.chart-wrap{position:relative;width:100%;margin-bottom:1.4rem;}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:9px;font-size:12px;color:var(--muted);}
+.legend span{display:flex;align-items:center;gap:5px;}
+.legend b{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0;}
+.tl{display:flex;flex-direction:column;gap:8px;}
+.tl-row{display:flex;align-items:baseline;gap:11px;font-size:13px;}
+.tl-yr{font-size:12px;color:var(--hint);min-width:38px;text-align:right;flex-shrink:0;}
+.tl-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:3px;}
+.tl-txt{color:var(--text);line-height:1.4;}
+.award-card{border-left:3px solid var(--amber);padding:8px 13px;margin-bottom:7px;background:#fff;border-radius:0 var(--rs) var(--rs) 0;}
+.award-yr{font-size:11px;color:var(--hint);}
+.award-txt{font-size:13px;color:var(--text);line-height:1.4;}
+table.dt{width:100%;border-collapse:collapse;font-size:13px;}
+table.dt th{text-align:left;padding:7px 9px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:500;font-size:12px;}
+table.dt td{padding:7px 9px;border-bottom:.5px solid var(--border);color:var(--text);vertical-align:top;}
+table.dt tr:last-child td{border-bottom:none;}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:9px;}
+.b-blue{background:var(--blue-l);color:var(--blue);}
+.b-green{background:#e8f5f0;color:#1D9E75;}
+.b-gray{background:var(--bg);color:var(--muted);}
+.b-amber{background:#fef3e2;color:#BA7517;}
+footer{padding:1.2rem 2rem;font-size:12px;color:var(--hint);border-top:.5px solid var(--border);margin-top:1.5rem;}
+footer a{color:var(--blue);text-decoration:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard Académico — José Manuel Ferreira Machado</h1>
+  <p>Professor Catedrático · Departamento de Informática · Universidade do Minho</p>
+</header>
+
+<div id="status"><div class="spinner"></div><span id="status-txt">A carregar dados…</span></div>
+
+<main id="app" style="display:none">
+  <nav>
+    <button class="active" onclick="tab('overview',this)">Visão geral</button>
+    <button onclick="tab('supervision',this)">Supervisão</button>
+    <button onclick="tab('reviews',this)">Revisões</button>
+    <button onclick="tab('outreach',this)">Outreach</button>
+    <button onclick="tab('projects',this)">Projetos</button>
+    <button onclick="tab('awards',this)">Prémios</button>
+  </nav>
+
+  <div id="tab-overview" class="tab active">
+    <div class="metrics" id="m-ov"></div>
+    <div class="sec">Doutoramentos e mestrados por ano</div>
+    <div class="legend">
+      <span><b style="background:#1a4f8a"></b>Doutoramentos</span>
+      <span><b style="background:#1D9E75"></b>Mestrados</span>
+    </div>
+    <div class="chart-wrap" style="height:260px"><canvas id="c-ov" role="img" aria-label="Doutoramentos e mestrados concluídos por ano"></canvas></div>
+  </div>
+
+  <div id="tab-supervision" class="tab">
+    <div class="metrics" id="m-sup"></div>
+    <div class="sec">Doutoramentos concluídos por ano</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="c-phd" role="img" aria-label="Doutoramentos por ano"></canvas></div>
+    <div class="sec">Mestrados concluídos por ano</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="c-msc" role="img" aria-label="Mestrados por ano"></canvas></div>
+    <div class="sec">PhD em curso</div><div id="phd-on" class="tl"></div>
+    <div class="sec" style="margin-top:1.5rem">Últimos mestrados</div><div id="msc-rec"></div>
+  </div>
+
+  <div id="tab-reviews" class="tab">
+    <div class="metrics" id="m-rev"></div>
+    <div class="sec">Revisões em revistas por ano</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="c-rev" role="img" aria-label="Revisões por ano"></canvas></div>
+    <div class="sec">IPC — Conferências recentes</div><div id="ipc-list" class="tl"></div>
+  </div>
+
+  <div id="tab-outreach" class="tab">
+    <div class="metrics" id="m-out"></div>
+    <div class="sec">Palestras e keynotes por ano</div>
+    <div class="legend">
+      <span><b style="background:#D85A30"></b>Palestras</span>
+      <span><b style="background:#BA7517"></b>Keynotes</span>
+    </div>
+    <div class="chart-wrap" style="height:220px"><canvas id="c-talks" role="img" aria-label="Palestras e keynotes por ano"></canvas></div>
+    <div class="sec">Keynotes</div><div id="key-list" class="tl"></div>
+  </div>
+
+  <div id="tab-projects" class="tab">
+    <div class="metrics" id="m-proj"></div>
+    <div class="sec">Todos os projetos</div>
+    <table class="dt" id="proj-tbl">
+      <thead><tr><th>Acrónimo</th><th>Título</th><th>Referência</th><th>Estado</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="tab-awards" class="tab">
+    <div class="metrics" id="m-aw"></div>
+    <div class="sec">Historial de prémios</div><div id="aw-list"></div>
+  </div>
+</main>
+
+<footer id="foot" style="display:none">
+  Dados: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSctRW4Esw6kMfqG58Hs1w2BvUl6nbWQJYU0qzkc_OEBOuhFyBUnlUNVg9nZdkESBMfyIMIge75q1NK/pubhtml" target="_blank">Google Sheet (cvjmac)</a>
+  — actualizado automaticamente a cada visita
+</footer>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────
+const PUB = '2PACX-1vSctRW4Esw6kMfqG58Hs1w2BvUl6nbWQJYU0qzkc_OEBOuhFyBUnlUNVg9nZdkESBMfyIMIge75q1NK';
+const BASE = `https://docs.google.com/spreadsheets/d/e/${PUB}`;
+
+// Sheet names to load (must match exactly)
+const SHEETS = ['TesesPhD','AlunosPhD','TesesMsC','Revistas','IPC','Palestras','Keynote','Projetos','Prémios'];
+
+// CORS proxy — used only once to discover GIDs from the pubhtml index page
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let GID={}, DATA={}, CH={};
+
+// ── BOOT ──────────────────────────────────────────────────────────────
+(async()=>{
+  try {
+    setStatus('A descobrir abas…');
+    await discoverGids();
+    setStatus('A carregar dados…');
+    await loadAll();
+    render();
+    document.getElementById('app').style.display='block';
+    document.getElementById('foot').style.display='block';
+    document.getElementById('status').className='hidden';
+  } catch(e){
+    setStatus('Erro: '+e.message, true);
+    console.error(e);
+  }
+})();
+
+function setStatus(msg, err=false){
+  document.getElementById('status-txt').textContent=msg;
+  document.getElementById('status').className=err?'err':'';
+}
+
+// ── GID DISCOVERY ─────────────────────────────────────────────────────
+// Fetches the published HTML page via CORS proxy and extracts tab GIDs
+async function discoverGids(){
+  const url = `${BASE}/pubhtml`;
+  const res  = await fetch(PROXY + encodeURIComponent(url));
+  if(!res.ok) throw new Error(`Proxy devolveu ${res.status} ao aceder à página publicada.`);
+  const html = await res.text();
+
+  // Google embeds tab info in JS: {"label":"SheetName","id":"XXXXXXX",...}
+  // and also in anchor hrefs: ?gid=XXXXXXX">Name</a>
+  const found={};
+
+  // Pattern 1 — href="...?gid=NNN...">Name
+  const p1=/[?&]gid=(\d+)[^"]*"[^>]*>\s*([^<\n]{1,60})\s*</g;
+  let m;
+  while((m=p1.exec(html))!==null){
+    const name=m[2].trim();
+    if(name && !found[name]) found[name]=m[1];
+  }
+
+  // Pattern 2 — "label":"Name","id":"NNN"
+  const p2=/"label":"([^"]+)","id":"(\d+)"/g;
+  while((m=p2.exec(html))!==null){
+    const name=m[1].trim();
+    if(name && !found[name]) found[name]=m[2];
+  }
+
+  // Map discovered names to requested sheet names (case-insensitive fallback)
+  SHEETS.forEach(s=>{
+    if(found[s]){ GID[s]=found[s]; return; }
+    // case-insensitive match
+    const k=Object.keys(found).find(k=>k.toLowerCase()===s.toLowerCase());
+    if(k) GID[s]=found[k];
+  });
+
+  const missing=SHEETS.filter(s=>!GID[s]);
+  if(missing.length===SHEETS.length)
+    throw new Error('Não foi possível descobrir nenhuma aba. Verifique se o Sheet está publicado em "Ficheiro → Partilhar → Publicar na Web" (folha inteira).');
+  if(missing.length>0)
+    console.warn('Abas não encontradas:', missing);
+}
+
+// ── CSV FETCH ─────────────────────────────────────────────────────────
+async function fetchCsv(name){
+  const gid=GID[name];
+  if(!gid){ console.warn('Sem GID para',name); return []; }
+  const url=`${BASE}/pub?output=csv&gid=${gid}&single=true`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status} ao ler "${name}"`);
+  return parseCsv(await res.text());
+}
+
+function parseCsv(txt){
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return [];
+  const hdr=csvRow(lines[0]);
+  return lines.slice(1).map(l=>{
+    const v=csvRow(l);
+    return Object.fromEntries(hdr.map((h,i)=>[h.trim(),(v[i]||'').trim()]));
+  }).filter(r=>Object.values(r).some(v=>v));
+}
+
+function csvRow(line){
+  const r=[]; let cur='',q=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}
+    else if(c===','&&!q){r.push(cur);cur='';}
+    else cur+=c;
+  }
+  r.push(cur); return r;
+}
+
+async function loadAll(){
+  const entries=await Promise.all(SHEETS.map(async n=>[n,await fetchCsv(n).catch(e=>{console.warn(n,e);return [];})]));
+  entries.forEach(([n,d])=>DATA[n]=d);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+const D=id=>document.getElementById(id);
+function numY(v){const n=parseFloat(v);return isNaN(n)?null:Math.floor(n);}
+function byYr(rows,f){const c={};rows.forEach(r=>{const y=numY(r[f]);if(y)c[y]=(c[y]||0)+1;});return c;}
+function sortY(o){return Object.keys(o).map(Number).sort((a,b)=>a-b);}
+function mc(v,l,s=''){return `<div class="metric card"><div class="metric-val">${v}</div><div class="metric-lbl">${l}</div>${s?`<div class="metric-sub">${s}</div>`:''}</div>`;}
+const GC='rgba(128,128,128,0.12)',TC='#888';
+const bO=(stk=false)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+  scales:{x:{stacked:stk,grid:{color:GC},ticks:{color:TC,font:{size:11},autoSkip:false,maxRotation:45}},
+          y:{stacked:stk,grid:{color:GC},ticks:{color:TC,font:{size:11}},beginAtZero:true}}});
+function mkC(id,type,labels,datasets,stk=false){
+  if(CH[id])CH[id].destroy();
+  const c=D(id);if(!c)return;
+  CH[id]=new Chart(c,{type,data:{labels,datasets},options:bO(stk)});
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────
+function render(){ov();sup();rev();out();proj();aw();}
+
+function ov(){
+  const pd=byYr(DATA.TesesPhD,'Ano'),md=byYr(DATA.TesesMsC,'Ano');
+  const yrs=[...new Set([...Object.keys(pd),...Object.keys(md)].map(Number))].sort((a,b)=>a-b);
+  D('m-ov').innerHTML=
+    mc(DATA.TesesPhD.length,'Doutoramentos concluídos')+
+    mc((DATA.AlunosPhD||[]).filter(r=>(r.Ano||'').toLowerCase().includes('desde')).length,'PhD em curso')+
+    mc(DATA.TesesMsC.length,'Mestrados concluídos')+
+    mc(DATA.Revistas.length,'Revisões em revistas')+
+    mc((DATA.IPC||[]).length,'IPC memberships')+
+    mc((DATA.Keynote||[]).length,'Keynotes')+
+    mc((DATA.Projetos||[]).length,'Projetos')+
+    mc((DATA['Prémios']||[]).length,'Prémios e distinções');
+  mkC('c-ov','bar',yrs,[
+    {label:'PhD',data:yrs.map(y=>pd[y]||0),backgroundColor:'#1a4f8a',borderRadius:3},
+    {label:'MSc',data:yrs.map(y=>md[y]||0),backgroundColor:'#1D9E75',borderRadius:3}]);
+}
+
+function sup(){
+  const pd=byYr(DATA.TesesPhD,'Ano'),md=byYr(DATA.TesesMsC,'Ano');
+  const py=sortY(pd),my=sortY(md);
+  const on=(DATA.AlunosPhD||[]).filter(r=>(r.Ano||'').toLowerCase().includes('desde'));
+  D('m-sup').innerHTML=mc(DATA.TesesPhD.length,'PhD concluídos')+mc(on.length,'PhD em curso')+mc(DATA.TesesMsC.length,'MSc concluídos')+mc(py[0]||'—','Primeiro doutoramento');
+  mkC('c-phd','bar',py,[{label:'PhD',data:py.map(y=>pd[y]),backgroundColor:'#1a4f8a',borderRadius:3}]);
+  mkC('c-msc','bar',my.slice(-8),[{label:'MSc',data:my.slice(-8).map(y=>md[y]||0),backgroundColor:'#1D9E75',borderRadius:3}]);
+  D('phd-on').innerHTML=on.map(r=>`<div class="tl-row"><div class="tl-yr">${(r.Ano||'').replace(/desde\s*/i,'')}</div><div class="tl-dot"></div><div class="tl-txt">${r.Aluno||''} — <em>${r.Trabalho||''}</em></div></div>`).join('');
+  const rec=[...DATA.TesesMsC].sort((a,b)=>(numY(b.Ano)||0)-(numY(a.Ano)||0)).slice(0,8);
+  D('msc-rec').innerHTML=`<table class="dt"><thead><tr><th>Ano</th><th>Estudante</th><th>Título</th><th>Mestrado</th></tr></thead><tbody>${rec.map(r=>`<tr><td>${numY(r.Ano)||''}</td><td>${r['Nome']||''}</td><td>${r['Título']||r.Titulo||''}</td><td><span class="badge b-blue">${(r['Mestrado']||'').slice(0,40)}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
+function rev(){
+  const rd=byYr(DATA.Revistas,'Ano'),yrs=sortY(rd);
+  const mx=Math.max(...Object.values(rd))||0, my=yrs.find(y=>rd[y]===mx)||'';
+  D('m-rev').innerHTML=mc(DATA.Revistas.length,'Total revisões')+mc(mx,'Pico anual',my+'')+mc((DATA.IPC||[]).length,'IPC memberships');
+  mkC('c-rev','line',yrs,[{label:'Revisões',data:yrs.map(y=>rd[y]),borderColor:'#1a4f8a',backgroundColor:'rgba(26,79,138,0.08)',pointBackgroundColor:'#1a4f8a',pointRadius:4,fill:true,tension:0.3}]);
+  D('ipc-list').innerHTML=(DATA.IPC||[]).slice(0,20).map(r=>{
+    const n=(r.IPC||r[Object.keys(r)[0]]||'').trim();
+    const c=n.match(/CORE\s+([A-Z*]+)/)?.[1];
+    return `<div class="tl-row"><div class="tl-dot"></div><div class="tl-txt">${n.replace(/\s*\{CORE.*?\}/,'').trim()} ${c?`<span class="badge ${c.includes('A')?'b-blue':'b-gray'}">CORE ${c}</span>`:''}</div></div>`;
+  }).join('');
+}
+
+function out(){
+  const pd=byYr(DATA.Palestras,'Ano'),kd=byYr(DATA.Keynote||[],'Ano');
+  const yrs=[...new Set([...Object.keys(pd),...Object.keys(kd)].map(Number))].sort((a,b)=>a-b).slice(-10);
+  D('m-out').innerHTML=mc((DATA.Keynote||[]).length,'Keynotes')+mc(DATA.Palestras.length,'Palestras')+mc(Math.max(...Object.values(pd))||0,'Pico anual','palestras');
+  mkC('c-talks','bar',yrs,[
+    {label:'Palestras',data:yrs.map(y=>pd[y]||0),backgroundColor:'#D85A30',borderRadius:3},
+    {label:'Keynotes', data:yrs.map(y=>kd[y]||0),backgroundColor:'#BA7517',borderRadius:3}],true);
+  D('key-list').innerHTML=(DATA.Keynote||[]).map(r=>`<div class="tl-row"><div class="tl-yr">${numY(r.Ano)||''}</div><div class="tl-dot"></div><div class="tl-txt">${(r.Nome||r[Object.keys(r)[0]]||'').trim()}</div></div>`).join('');
+}
+
+function proj(){
+  const all=DATA.Projetos||[];
+  const act=all.filter(r=>r.EmCurso==='S'),ir=all.filter(r=>r.IR==='S');
+  D('m-proj').innerHTML=mc(all.length,'Total projetos')+mc(act.length,'Em curso')+mc(ir.length,'Como IR','investigador responsável');
+  document.querySelector('#proj-tbl tbody').innerHTML=all.map(r=>`<tr>
+    <td><strong>${r.Acronimo||r['Acrónimo']||''}</strong></td>
+    <td>${r.Titulo||r['Título']||''}</td>
+    <td style="font-size:11px;color:var(--hint)">${r.Referencia||r['Referência']||''}</td>
+    <td>${r.EmCurso==='S'?'<span class="badge b-green">Em curso</span>':'<span class="badge b-gray">Concluído</span>'}${r.IR==='S'?' <span class="badge b-amber">IR</span>':''}</td>
+  </tr>`).join('');
+}
+
+function aw(){
+  const all=DATA['Prémios']||[];
+  D('m-aw').innerHTML=mc(all.length,'Prémios e distinções');
+  D('aw-list').innerHTML=all.map(r=>`<div class="award-card"><div class="award-yr">${numY(r.Ano)||''}</div><div class="award-txt">${(r.Nome||r[Object.keys(r)[0]]||'').trim()}</div></div>`).join('');
+}
+
+function tab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  D('tab-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+</script>
+</body>
+</html>
